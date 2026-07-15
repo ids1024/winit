@@ -17,12 +17,16 @@
 
 #![allow(clippy::mutable_key_type)]
 
+use std::any::Any;
 use std::ffi::c_void;
+use std::marker::PhantomData;
 use std::ptr::NonNull;
 
 use dpi::{LogicalSize, PhysicalSize};
+use rwh_06::HandleError;
 use sctk::reexports::client::Proxy;
 use sctk::reexports::client::protocol::wl_surface::WlSurface;
+use sctk::reexports::csd_frame::WindowState;
 use sctk::shm::slot::{Buffer, CreateBufferError, SlotPool};
 use wayland_client::protocol::wl_shm::Format;
 use winit_core::event_loop::ActiveEventLoop as CoreActiveEventLoop;
@@ -75,18 +79,52 @@ pub trait EventLoopBuilderExtWayland {
     fn with_any_thread(&mut self, any_thread: bool) -> &mut Self;
 }
 
+pub struct XdgSurfaceHandle<'a> {
+    raw: NonNull<c_void>,
+    _marker: PhantomData<&'a ()>,
+}
+
+impl<'a> XdgSurfaceHandle<'a> {
+    /// Create a `XdgSurfaceHandle` from a [`NonNull<c_void>`]
+    pub unsafe fn borrow_raw(raw: NonNull<c_void>) -> Self {
+        Self { raw, _marker: PhantomData }
+    }
+
+    /// Get the underlying raw xdg_surface handle.
+    pub fn as_raw(&self) -> NonNull<c_void> {
+        self.raw
+    }
+}
+
+pub trait HasXdgSurfaceHandle {
+    fn xdg_surface_handle(&self) -> Result<XdgSurfaceHandle<'_>, HandleError>;
+}
+
 /// Additional methods on [`Window`] that are specific to Wayland.
 ///
 /// [`Window`]: crate::window::Window
 pub trait WindowExtWayland {
     /// Returns `xdg_toplevel` of the window or [`None`] if the window is X11 window.
     fn xdg_toplevel(&self) -> Option<NonNull<c_void>>;
+
+    fn xdg_surface_handle<'a>(&'a self) -> Option<&dyn HasXdgSurfaceHandle>;
+
+    fn window_state(&self) -> Option<WindowState>;
 }
 
 impl WindowExtWayland for dyn CoreWindow + '_ {
     #[inline]
     fn xdg_toplevel(&self) -> Option<NonNull<c_void>> {
         self.cast_ref::<Window>()?.xdg_toplevel()
+    }
+
+    #[inline]
+    fn xdg_surface_handle(&self) -> Option<&dyn HasXdgSurfaceHandle> {
+        Some(self.cast_ref::<Window>()? as &dyn HasXdgSurfaceHandle)
+    }
+
+    fn window_state(&self) -> Option<WindowState> {
+        self.cast_ref::<Window>()?.xdg_window_state()
     }
 }
 

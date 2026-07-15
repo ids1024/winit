@@ -388,6 +388,18 @@ pub enum WindowEvent {
         surface_size_writer: SurfaceSizeWriter,
     },
 
+    /// The suggested bounds of the window's surface has changed.
+    ///
+    /// Contains the new bounds of the surface
+    ///
+    /// - **iOS / Android / Web / Orbital / Windows:** Unsupported.
+    SuggestedBounds(Option<PhysicalSize<u32>>),
+
+    /// The window state has changed.
+    ///
+    /// - **iOS / Android / Web / Orbital / Windows:** Unsupported.
+    WindowStateChanged,
+
     /// The system window theme has changed.
     ///
     /// Applications might wish to react to this to change the theme of the content of the window
